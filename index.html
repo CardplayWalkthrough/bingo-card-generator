@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bingo Cards</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700;800&display=swap" rel="stylesheet">
+
+<style>
+  /* ------------------------------------------------------------------
+     Palette: matches the caller video (navy stage + traditional ball
+     colours per letter). Works offline too; the font falls back.
+     ------------------------------------------------------------------ */
+  :root {
+    --stage-hi: #16294A;
+    --stage-lo: #060B14;
+    --ink: #0D1626;
+    --text: #F4F2EE;
+    --muted: #8E9DB5;
+    --accent: #F5C451;
+    --line: #DCE1E8;
+    --paper: #FFFFFF;
+    --paper-soft: #F6F7F9;
+
+    --B: #2F7BE0;
+    --I: #E0413A;
+    --N: #C9CED6;
+    --G: #27A55A;
+    --O: #F09A1A;
+
+    --font: "Montserrat", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  }
+
+  * { box-sizing: border-box; }
+
+  html { background: var(--stage-lo); }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    font-family: var(--font);
+    color: var(--text);
+    background:
+      radial-gradient(ellipse 90% 70% at 25% 20%, var(--stage-hi) 0%, transparent 70%),
+      var(--stage-lo);
+    background-attachment: fixed;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ---------------- Top bar ---------------- */
+  .topbar {
+    max-width: 1240px;
+    margin: 0 auto;
+    padding: 28px 24px 20px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 18px 24px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  .brand { display: flex; align-items: baseline; gap: 14px; }
+  .brand .word { font-size: 34px; font-weight: 800; letter-spacing: 0.04em; line-height: 1; }
+  .brand .word span:nth-child(1) { color: #5C97E8; }
+  .brand .word span:nth-child(2) { color: #E8655F; }
+  .brand .word span:nth-child(3) { color: #DDE1E7; }
+  .brand .word span:nth-child(4) { color: #4CBB78; }
+  .brand .word span:nth-child(5) { color: #F4AE45; }
+  .brand .sub {
+    font-size: 12px; font-weight: 700; letter-spacing: 0.28em;
+    text-transform: uppercase; color: var(--muted);
+  }
+
+  .controls { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+
+  .group-label {
+    font-size: 11px; font-weight: 700; letter-spacing: 0.22em;
+    text-transform: uppercase; color: var(--muted); margin-right: 2px;
+  }
+
+  .segmented {
+    display: inline-flex;
+    padding: 4px;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+  }
+  .segmented button {
+    min-width: 44px;
+    border: 0;
+    border-radius: 9px;
+    background: transparent;
+    color: var(--text);
+    font: 700 15px var(--font);
+    padding: 9px 14px;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+  }
+  .segmented button:hover { background: rgba(255, 255, 255, 0.08); }
+  .segmented button[aria-pressed="true"] { background: var(--accent); color: var(--ink); }
+
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    border-radius: 12px;
+    font: 700 14px var(--font);
+    letter-spacing: 0.02em;
+    padding: 12px 18px;
+    cursor: pointer;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--text);
+    transition: background 0.15s, border-color 0.15s, color 0.15s, transform 0.05s;
+    white-space: nowrap;
+  }
+  .btn:hover { background: rgba(255, 255, 255, 0.12); }
+  .btn:active { transform: translateY(1px); }
+  .btn svg { width: 16px; height: 16px; flex: none; }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--ink); }
+  .btn.primary:hover { background: #F8D272; }
+  .btn.armed { background: #D6202C; border-color: #D6202C; color: #fff; }
+
+  button:focus-visible, .cell:focus-visible {
+    outline: 3px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  .hint {
+    max-width: 1240px;
+    margin: 0 auto;
+    padding: 14px 24px 0;
+    font-size: 13px;
+    color: var(--muted);
+  }
+  .hint b { color: var(--text); font-weight: 600; }
+
+  /* ---------------- Cards ---------------- */
+  #cards {
+    max-width: 1240px;
+    margin: 0 auto;
+    padding: 24px 24px 56px;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 32px;
+  }
+
+  .card {
+    width: 400px;
+    background: var(--paper);
+    border-radius: 22px;
+    padding: 14px;
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.6) inset,
+      0 24px 48px -12px rgba(0, 0, 0, 0.6),
+      0 2px 6px rgba(0, 0, 0, 0.3);
+    color: var(--ink);
+  }
+
+  .head {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 6px;
+    margin-bottom: 10px;
+  }
+  .head div {
+    height: 58px;
+    border-radius: 12px;
+    display: grid;
+    place-items: center;
+    font-size: 32px;
+    font-weight: 800;
+    color: #fff;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+    box-shadow: inset 0 -3px 0 rgba(0, 0, 0, 0.18), inset 0 2px 0 rgba(255, 255, 255, 0.25);
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .head .B { background: linear-gradient(#4A8CE6, var(--B)); }
+  .head .I { background: linear-gradient(#E85A54, var(--I)); }
+  .head .N { background: linear-gradient(#DADEE4, var(--N)); color: var(--ink); text-shadow: none; }
+  .head .G { background: linear-gradient(#3DB86C, var(--G)); }
+  .head .O { background: linear-gradient(#F4AA3A, var(--O)); }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 1px;
+    background: var(--line);          /* the gap shows as grid lines */
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    overflow: hidden;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .cell {
+    position: relative;
+    height: 72px;
+    border: 0;
+    margin: 0;
+    padding: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font: 700 30px var(--font);
+    font-variant-numeric: tabular-nums;
+    cursor: pointer;
+    display: grid;
+    place-items: center;
+    transition: background 0.15s;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+  .cell:hover { background: var(--paper-soft); }
+  .cell .num { position: relative; z-index: 1; }
+
+  .cell.free {
+    background: #FFF7E3;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .cell.free .num {
+    display: grid; justify-items: center; line-height: 1.05;
+  }
+  .cell.free .star { font-size: 20px; color: #E0A11B; }
+  .cell.free .label { font-size: 12px; font-weight: 800; letter-spacing: 0.24em; text-indent: 0.24em; color: #A4740C; }
+
+  /* ---------------- The chip ----------------
+     Classic red translucent bingo marker: glossy dome, darker rim,
+     specular highlight. The number stays readable through it. */
+  .chip {
+    position: absolute;
+    z-index: 2;
+    left: 50%;
+    top: 50%;
+    width: 58px;
+    height: 58px;
+    margin: -29px 0 0 -29px;
+    border-radius: 50%;
+    pointer-events: none;
+    background:
+      radial-gradient(circle at 30% 24%, rgba(255, 255, 255, 0.92) 0 3%, rgba(255, 255, 255, 0) 10%),
+      radial-gradient(ellipse 62% 38% at 50% 16%, rgba(255, 255, 255, 0.30), rgba(255, 255, 255, 0) 72%),
+      radial-gradient(circle at 50% 50%, rgba(214, 10, 26, 0.56) 0 50%, rgba(186, 4, 18, 0.74) 68%, rgba(104, 0, 8, 0.90) 100%);
+    box-shadow:
+      inset 0 0 0 3px rgba(150, 0, 12, 0.35),
+      inset 0 -6px 10px rgba(80, 0, 6, 0.35),
+      inset 0 3px 5px rgba(255, 170, 170, 0.30),
+      0 4px 8px rgba(80, 0, 6, 0.35),
+      0 1px 2px rgba(0, 0, 0, 0.3);
+    opacity: 0;
+    transform: translate(var(--dx, 0px), var(--dy, 0px)) scale(1.35) rotate(var(--rot, 0deg));
+    transition: opacity 0.16s ease-out, transform 0.22s cubic-bezier(0.2, 1.4, 0.4, 1);
+  }
+  /* inner moulded ring, like a real plastic chip */
+  .chip::after {
+    content: "";
+    position: absolute;
+    inset: 9px;
+    border-radius: 50%;
+    border: 1.5px solid rgba(255, 120, 120, 0.30);
+    box-shadow: 0 0 0 1px rgba(120, 0, 10, 0.18);
+  }
+  .cell.marked .chip {
+    opacity: 1;
+    transform: translate(var(--dx, 0px), var(--dy, 0px)) scale(1) rotate(var(--rot, 0deg));
+  }
+
+  .foot {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 6px 2px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.22em;
+    color: #8A94A6;
+  }
+  .foot .count { color: #B0141F; }
+  .foot .count.zero { color: #B5BDCA; }
+
+  /* ---------------- Small screens ---------------- */
+  @media (max-width: 560px) {
+    .topbar { padding: 20px 16px 16px; }
+    .hint { padding: 12px 16px 0; }
+    #cards { padding: 18px 16px 40px; gap: 24px; }
+    .card { width: 100%; padding: 10px; border-radius: 18px; }
+    .head div { height: 48px; font-size: 26px; border-radius: 10px; }
+    .cell { height: 60px; font-size: 24px; }
+    .chip { width: 48px; height: 48px; margin: -24px 0 0 -24px; }
+    .chip::after { inset: 7px; }
+    .btn .label-long { display: none; }
+  }
+
+  /* ---------------- Print: clean paper cards, no chips ---------------- */
+  @page { margin: 12mm; }
+  @media print {
+    html, body { background: #fff !important; }
+    .topbar, .hint { display: none; }
+    #cards { padding: 0; gap: 8mm; justify-content: flex-start; max-width: none; }
+    .card {
+      width: 88mm;
+      padding: 3mm;
+      border: 0.4mm solid #C9D0DA;
+      border-radius: 4mm;
+      box-shadow: none;
+      break-inside: avoid;
+      page-break-inside: avoid;
+    }
+    .head { gap: 1.5mm; margin-bottom: 2mm; }
+    .head div { height: 12mm; font-size: 20pt; border-radius: 2.5mm; }
+    .cell { height: 15mm; font-size: 18pt; }
+    .cell:hover { background: var(--paper); }
+    .cell.free:hover { background: #FFF7E3; }
+    .chip { display: none; }
+    .foot { padding-top: 2mm; font-size: 7pt; }
+    .foot .count { display: none; }
+  }
+</style>
+</head>
+
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <div class="word" aria-label="BINGO"><span>B</span><span>I</span><span>N</span><span>G</span><span>O</span></div>
+    <div class="sub">Player cards</div>
+  </div>
+
+  <div class="controls">
+    <span class="group-label">Cards</span>
+    <div class="segmented" role="group" aria-label="Number of cards">
+      <button type="button" data-count="1">1</button>
+      <button type="button" data-count="2">2</button>
+      <button type="button" data-count="4">4</button>
+    </div>
+
+    <button type="button" class="btn primary" id="dealBtn">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 4v5h-5"/></svg>
+      <span>New <span class="label-long">cards</span></span>
+    </button>
+
+    <button type="button" class="btn" id="resetBtn">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M8 8l8 8"/></svg>
+      <span class="btn-text">Clear chips</span>
+    </button>
+
+    <button type="button" class="btn" onclick="window.print()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9V3h12v6"/><rect x="3" y="9" width="18" height="8" rx="2"/><path d="M6 14h12v7H6z"/></svg>
+      <span>Print</span>
+    </button>
+  </div>
+</header>
+
+<p class="hint"><b>Tap a number</b> to place a chip; tap again to remove it. The free space starts covered.</p>
+
+<main id="cards" aria-live="polite"></main>
+
+<script>
+(() => {
+  const LETTERS = ["B", "I", "N", "G", "O"];
+  const FREE = 12;                       // centre cell index (row 2, col 2)
+  const STORE_KEY = "bingoCards.v1";
+
+  // state.cards[i] = { no, nums: [25 numbers, row-major, centre = 0], marks: [25 booleans] }
+  let state = { nextNo: 1, count: 1, cards: [] };
+
+  // ---------------- persistence (per browser, optional) ----------------
+  function save() {
+    try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); } catch (e) { /* storage blocked */ }
+  }
+  function load() {
+    try {
+      const s = JSON.parse(localStorage.getItem(STORE_KEY));
+      if (s && Array.isArray(s.cards) && s.cards.length) state = s;
+    } catch (e) { /* ignore */ }
+  }
+
+  // ---------------- card generation (standard 75-ball) ----------------
+  function pickColumn(min, max) {
+    const pool = [];
+    for (let n = min; n <= max; n++) pool.push(n);
+    for (let i = pool.length - 1; i > 0; i--) {          // Fisher–Yates
+      const j = Math.floor(Math.random() * (i + 1));
+      [pool[i], pool[j]] = [pool[j], pool[i]];
+    }
+    return pool.slice(0, 5);
+  }
+
+  function newCard() {
+    const cols = LETTERS.map((_, c) => pickColumn(c * 15 + 1, c * 15 + 15));
+    const nums = [];
+    for (let r = 0; r < 5; r++) for (let c = 0; c < 5; c++) nums.push(cols[c][r]);
+    nums[FREE] = 0;
+    const marks = Array(25).fill(false);
+    marks[FREE] = true;                                 // free space counts as marked
+    return { no: state.nextNo++, nums, marks };
+  }
+
+  function deal(count) {
+    state.count = count;
+    state.cards = Array.from({ length: count }, newCard);
+    save();
+    render();
+  }
+
+  // ---------------- rendering ----------------
+  // Small, stable "hand placed" jitter per cell so chips don't look stamped
+  function jitter(cardNo, i) {
+    const h = Math.sin(cardNo * 97.13 + i * 13.37) * 43758.5453;
+    const f = h - Math.floor(h);
+    const g = (Math.sin(cardNo * 31.7 + i * 7.91) * 12345.678) % 1;
+    return { rot: Math.round(f * 360), dx: ((f - 0.5) * 4).toFixed(1), dy: ((Math.abs(g) - 0.5) * 4).toFixed(1) };
+  }
+
+  function markedCount(card) {
+    return card.marks.reduce((a, m, i) => a + (m && i !== FREE ? 1 : 0), 0);
+  }
+
+  function updateCount(cardEl, card) {
+    const el = cardEl.querySelector(".count");
+    const n = markedCount(card);
+    el.textContent = n === 1 ? "1 MARKED" : `${n} MARKED`;
+    el.classList.toggle("zero", n === 0);
+  }
+
+  function render() {
+    const wrap = document.getElementById("cards");
+    wrap.innerHTML = "";
+    state.cards.forEach((card, ci) => {
+      const el = document.createElement("section");
+      el.className = "card";
+      el.setAttribute("aria-label", `Bingo card ${card.no}`);
+
+      const head = document.createElement("div");
+      head.className = "head";
+      head.innerHTML = LETTERS.map(L => `<div class="${L}">${L}</div>`).join("");
+      el.appendChild(head);
+
+      const grid = document.createElement("div");
+      grid.className = "grid";
+      card.nums.forEach((n, i) => {
+        const b = document.createElement("button");
+        b.type = "button";
+        b.className = "cell" + (i === FREE ? " free" : "") + (card.marks[i] ? " marked" : "");
+        b.setAttribute("aria-pressed", card.marks[i]);
+        b.setAttribute("aria-label", i === FREE ? "Free space" : `${LETTERS[i % 5]} ${n}`);
+        const j = jitter(card.no, i);
+        b.innerHTML =
+          (i === FREE
+            ? `<span class="num"><span class="star">★</span><span class="label">FREE</span></span>`
+            : `<span class="num">${n}</span>`) +
+          `<span class="chip" style="--rot:${j.rot}deg;--dx:${j.dx}px;--dy:${j.dy}px"></span>`;
+        b.addEventListener("click", () => {
+          card.marks[i] = !card.marks[i];
+          b.classList.toggle("marked", card.marks[i]);
+          b.setAttribute("aria-pressed", card.marks[i]);
+          updateCount(el, card);
+          save();
+        });
+        grid.appendChild(b);
+      });
+      el.appendChild(grid);
+
+      const foot = document.createElement("div");
+      foot.className = "foot";
+      foot.innerHTML = `<span>CARD #${String(card.no).padStart(4, "0")}</span><span class="count"></span>`;
+      el.appendChild(foot);
+      updateCount(el, card);
+
+      wrap.appendChild(el);
+    });
+
+    document.querySelectorAll(".segmented button").forEach(b =>
+      b.setAttribute("aria-pressed", Number(b.dataset.count) === state.count));
+  }
+
+  // ---------------- two-step confirm (no pop-up dialogs) ----------------
+  // First click arms the button; a second click within 3s performs the action.
+  function twoStep(btn, armedText, shouldConfirm, action, onCancel) {
+    const textEl = btn.querySelector(".btn-text") || btn.querySelector("span");
+    const original = textEl.innerHTML;
+    let timer = null;
+    const disarm = () => {
+      clearTimeout(timer); timer = null;
+      btn.classList.remove("armed"); textEl.innerHTML = original;
+    };
+    btn.addEventListener("click", () => {
+      if (!shouldConfirm()) { action(); return; }
+      if (timer) { disarm(); action(); return; }
+      btn.classList.add("armed"); textEl.textContent = armedText;
+      timer = setTimeout(() => { disarm(); if (onCancel) onCancel(); }, 3000);
+    });
+    return disarm;
+  }
+
+  const anyChips = () => state.cards.some(c => markedCount(c) > 0);
+
+  function clearChips() {
+    state.cards.forEach(c => { c.marks = c.marks.map((_, i) => i === FREE); });
+    save();
+    document.querySelectorAll(".card").forEach((el, ci) => {
+      el.querySelectorAll(".cell").forEach((b, i) => {
+        const on = i === FREE;
+        b.classList.toggle("marked", on);
+        b.setAttribute("aria-pressed", on);
+      });
+      updateCount(el, state.cards[ci]);
+    });
+  }
+
+  twoStep(document.getElementById("resetBtn"), "Click again to clear", anyChips, clearChips);
+
+  let pendingCount = null;
+  const showCount = n => document.querySelectorAll(".segmented button").forEach(x =>
+    x.setAttribute("aria-pressed", Number(x.dataset.count) === n));
+  twoStep(document.getElementById("dealBtn"), "Replace cards?", anyChips,
+          () => { const n = pendingCount ?? state.count; pendingCount = null; deal(n); },
+          () => { pendingCount = null; showCount(state.count); });   // not confirmed: revert
+
+  document.querySelectorAll(".segmented button").forEach(b => {
+    b.addEventListener("click", () => {
+      const n = Number(b.dataset.count);
+      if (!anyChips()) { deal(n); return; }
+      // Cards in play: highlight the choice, and let "New cards" confirm the swap
+      pendingCount = n;
+      showCount(n);
+      const dealBtn = document.getElementById("dealBtn");
+      if (!dealBtn.classList.contains("armed")) dealBtn.click();
+    });
+  });
+
+  // ---------------- start ----------------
+  load();
+  if (state.cards.length) render(); else deal(1);
+})();
+</script>
+
+</body>
+</html>
